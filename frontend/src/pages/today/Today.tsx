@@ -1,11 +1,12 @@
 /**
- * Today: who has filed and the numbers for one parade (`selectedDate`), then who is due back and who has just
- * returned. Trends over a range are on the Trends page.
+ * Daily Overview: who has filed and the numbers for one parade (`selectedDate`, today by default), then who is
+ * due back and who has just returned. Trends over a range are on the Trends page.
  */
 
-import { useEffect, useMemo, useRef } from 'preact/hooks';
+import { useMemo } from 'preact/hooks';
 import { company, loadedData, selectedDate } from '../../app/state.ts';
-import { Card, Coverage, EmptyState } from '../../components/Card.tsx';
+import { Card, Coverage } from '../../components/Card.tsx';
+import { isoToday } from '../../model/dateRange.ts';
 import { Tile, TileRow } from '../../components/Tile.tsx';
 import { PageControls } from '../../components/PageControls.tsx';
 import { FilingChips } from '../../components/FilingChips.tsx';
@@ -14,7 +15,7 @@ import { ChartCard, Donut } from '../../charts/index.ts';
 import { COMPANIES, isCompany } from '../../../../shared/domain.ts';
 import { DUTY_CLASS, MC_MA } from '../../model/classify.ts';
 import { onlyCompany, scopeDataset } from '../../model/scope.ts';
-import { absenceParts, datesPresent, battalionStrength, dutyCountsOn, distinctDutyOn } from '../../model/metrics.ts';
+import { absenceParts, battalionStrength, dutyCountsOn, distinctDutyOn } from '../../model/metrics.ts';
 import { toSubmissions } from '../../model/formsg.ts';
 import { filingsOn, toFilings } from '../../model/submissions.ts';
 import { AwayAheadCard, OtherDutiesCard, RecentReturnsCard, RestrictionsCard, ReturnsCard, TierCard } from './cards.tsx';
@@ -22,7 +23,7 @@ import { AwayAheadCard, OtherDutiesCard, RecentReturnsCard, RestrictionsCard, Re
 /** Session every "today" figure and trend describes. */
 const SESSION = 'FPS';
 
-/** The Today page. */
+/** The Daily Overview page. */
 export function Today() {
   const full = loadedData();
   const data = useMemo(() => scopeDataset(full, company.value), [full, company.value]);
@@ -30,33 +31,8 @@ export function Today() {
 
   const submissions = useMemo(() => toSubmissions(data.formSg), [data.formSg]);
   const filings = useMemo(() => toFilings(data.submissions), [data.submissions]);
-  // The selectable dates come from the full, unscoped strength so they
-  // do not shrink when a company that filed on fewer days is picked.
-  const paradeDates = useMemo(() => datesPresent(full.strength), [full.strength]);
-
-  // Follow the newest parade: on first open, and when a background refresh brings a new
-  // day while the viewer was looking at the latest one. A date picked by hand stays put.
-  const latestSeen = useRef<string | null>(null);
-  useEffect(() => {
-    const latest = paradeDates[paradeDates.length - 1] ?? null;
-    if (!selectedDate.value || selectedDate.value === latestSeen.current) {
-      selectedDate.value = latest;
-    }
-    latestSeen.current = latest;
-  }, [paradeDates]);
-
-  const today = selectedDate.value ?? paradeDates[paradeDates.length - 1] ?? null;
-
-  if (!today) {
-    return (
-      <div class="page">
-        <header class="pagehead">
-          <h1 class="pagehead__title">Today</h1>
-        </header>
-        <EmptyState>No parade state has been read yet.</EmptyState>
-      </div>
-    );
-  }
+  // Any date may be picked; until one is, the page shows today.
+  const today = selectedDate.value ?? isoToday();
 
   const strength = battalionStrength(data.strength, today, SESSION);
   const hasParadeState = strength.companiesReporting.length > 0;
@@ -72,15 +48,25 @@ export function Today() {
     <div class="page">
       <header class="pagehead">
         <div>
-          <h1 class="pagehead__title">Today</h1>
+          <h1 class="pagehead__title">Daily Overview</h1>
           <p class="pagehead__sub">{fmtDate(today)}</p>
         </div>
       </header>
 
-      <PageControls min={paradeDates[0] ?? today} max={paradeDates[paradeDates.length - 1] ?? today} />
+      <PageControls showRange={false}>
+        <input
+          class="field"
+          type="date"
+          aria-label="Date"
+          value={today}
+          onInput={(e) => {
+            selectedDate.value = e.currentTarget.value || null;
+          }}
+        />
+      </PageControls>
 
       <Card
-        title="Today's First Parade State"
+        title="First Parade State"
         note="Lit in the company's colour once its first parade state reaches the database; the time is when it was received"
       >
         <FilingChips entries={filingEntries} />

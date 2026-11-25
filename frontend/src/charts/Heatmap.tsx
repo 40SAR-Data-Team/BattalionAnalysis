@@ -8,7 +8,7 @@ import { Plot } from './Plot.tsx';
 import { TableTwin } from './TableTwin.tsx';
 import { fmtDayMonth, fmtInt } from '../format.ts';
 import { tooltipLines } from './tooltip.ts';
-import { axisOption, baseOption, type ChartOption, type Palette } from './theme.ts';
+import { axisOption, baseOption, standingColor, type ChartOption, type Palette } from './theme.ts';
 import type { ChartViewProps } from './ChartCard.tsx';
 import type { Cell } from '../model/metrics.ts';
 
@@ -17,6 +17,8 @@ export interface HeatCell extends Omit<Cell, 'value'> {
   value: number | null;
   inferred?: boolean;
   platoon?: string;
+  /** A standing colours the cell instead of the ramp (`warning` deepens with value); any other name draws grey. */
+  standing?: string;
 }
 
 /**
@@ -103,10 +105,17 @@ function inferredOverlay(palette: Palette, inferred: { value: number[] }[]): Cha
   };
 }
 
+/** A standing cell's fill: its semantic colour (grey when none), a `warning` paler the nearer it is to zero. */
+function standingStyle(cell: HeatCell, max: number, palette: Palette): ChartOption {
+  const opacity = cell.standing === 'warning' ? 0.35 + (0.65 * (cell.value ?? max)) / max : 1;
+  return { color: standingColor(palette, cell.standing) ?? palette.hairline, opacity };
+}
+
 /** The ECharts option. */
 function option<C extends HeatCell>(props: HeatmapProps<C>, palette: Palette): ChartOption {
   const { rows, columns, cells, valueName, detail, showValues } = props;
   const named = cells.some((cell) => cell.platoon);
+  const byStanding = cells.some((cell) => cell.standing);
   const max = Math.max(1, ...cells.map((cell) => cell.value ?? 0));
   const placed = cells
     .map((cell) => ({
@@ -136,7 +145,7 @@ function option<C extends HeatCell>(props: HeatmapProps<C>, palette: Palette): C
         return tooltipLines(
           entry.row + ', ' + (entry.platoon ? entry.platoon + ' (' + entry.column + ')' : fmtDayMonth(entry.column)),
           [
-            (valueName || 'Value') + ': ' + fmtInt(entry.value),
+            entry.value === null ? '' : (valueName || 'Value') + ': ' + fmtInt(entry.value),
             ...(detail ? detail(entry) : []),
             entry.inferred ? INFERRED_NOTE : '',
           ],
@@ -155,7 +164,8 @@ function option<C extends HeatCell>(props: HeatmapProps<C>, palette: Palette): C
       },
     }),
     yAxis: gridAxis(rows, { inverse: true }),
-    visualMap: {
+    // A heatmap must have a visualMap; on a standing grid it is hidden and maps no colour, so each cell's own shows.
+    visualMap: byStanding ? { show: false, min: 0, max, inRange: { symbolSize: 1 } } : {
       min: 0,
       max,
       calculable: false,
@@ -175,12 +185,14 @@ function option<C extends HeatCell>(props: HeatmapProps<C>, palette: Palette): C
         type: 'heatmap',
         name: valueName || 'Value',
         data: placed.map((entry) => ({
-          value: [entry.column, entry.row, entry.cell.value],
+          // ECharts skips a null-valued cell; a standing cell is drawn by its colour, so 0 stands in.
+          value: [entry.column, entry.row, byStanding ? (entry.cell.value ?? 0) : entry.cell.value],
           cell: entry.cell,
+          ...(byStanding ? { itemStyle: standingStyle(entry.cell, max, palette) } : {}),
         })),
         // On a position grid the cell names its company's platoon; the halo keeps it legible.
         label: {
-          show: named || Boolean(showValues),
+          show: !byStanding && (named || Boolean(showValues)),
           formatter: (params: CellParam<C>) => {
             const cell = params.data.cell;
             if (!named) return cell.value ? fmtInt(cell.value) : '';

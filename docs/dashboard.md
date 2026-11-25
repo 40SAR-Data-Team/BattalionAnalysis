@@ -8,7 +8,7 @@ The pages, in the order a commander reads them:
 
 | Page | Answers |
 |---|---|
-| **Today** | Who has filed a parade state this morning, and when? How many do I have, how many turned up, and why is the rest missing? What are the other duties? Who cannot do what? Are my officers there? How many will I have over the next two weeks, and who is back when? |
+| **Daily Overview** | One day (today by default, any date picked): who has filed a parade state this morning, and when? How many do I have, how many turned up, and why is the rest missing? What are the other duties? Who cannot do what? Are my officers there? How many will I have over the next two weeks, and who is back when? |
 | **Duty Roster** | Who is on duty today, from the CDO down, and which chairs were filed vacant? Is duty spread fairly, and was anyone rostered while on MC or leave? |
 | **Report Sick** · **MC / MA** · **Status & Restrictions** | Is it getting worse? Which company? Which platoon? Who, most often? Plus: is something spreading (Report Sick); when do MCs start, who has many short MCs against few long ones, how long do MCs run (MC / MA); who did SFT while restricted (Status & Restrictions). |
 | **Report Sick Compliance** | Did every soldier the parade state lists as reporting sick file the FormSG that day? Names are matched per day (4D first, then a typo-tolerant name match, `model/compliance.ts`); lists who did not, and who filed without being listed. |
@@ -276,9 +276,9 @@ strength block's own split, so a company at 90% missing half its officers shows 
   segmented row). Its popover holds the quick ranges (This week / Last week / This month /
   Last month / All) beside a two-click month grid; closed, it shows only the committed
   range. It bounds every trend, rate and
-  leaderboard so they all cover one named span; it defaults to All. The Today page and
-  the masthead describe a single parade and ignore the range, and the parade-date
-  selector's options narrow to the dates inside it — so a "today" figure never sits
+  leaderboard so they all cover one named span; it defaults to All. The Daily Overview page and
+  the masthead describe a single parade and ignore the range; Daily Overview has its own
+  date picker, defaulting to today — so a "today" figure never sits
   under a span the reader has to remember.
 
 ## Deposit
@@ -365,7 +365,7 @@ existing chart, except one new chart type (`Scatter`). Every one is a count, nev
 | **MC Length, by Symptom** (MC / MA) | Which conditions keep soldiers away longest? (MO) | `symptoms.ts#lengthBySymptom`: episode `daysLost` in bands 1, 2–3, 4–7, 8+ days, by symptom from the reason | Heatmap symptom × band: a distribution per category without a box plot | Duration as stated, else dated, else observed (`episodes.ts`) |
 | **SFT While Restricted** (Status & Restrictions) | Is anyone training against their status? (S3, MO) | `sft.ts#sftAgainstStatus`: SFT sessions on a day the soldier held Light Duty or an RMJ, heavy-load, upper-limb or kneeling excuse | A table: each line is a case to check, not a quantity | Names matched loosely (`namesMatch`); some sessions may be allowed |
 | **Duty Load** and **On Duty While Away** (Duty Roster) | Is duty spread fairly? Was anyone rostered while away? (RSM) | `dutyRoster.ts#rosterLoad`, `#rosterClashes` | Tables: names with counts, and cases to check | A battalion CDO on five rosters is one duty; clashes need names to match loosely and stated ranks to agree |
-| **First Parade State, Minutes Late** (Filing & Accuracy) | Do companies file on time? (RSM, S1) | `submissions.ts#filingTimes`: the first FPS filing per company per day, minutes past 08:00 | Heatmap company × day: a habit shows as a row, a bad day as a column | The 08:00 cut-off is a constant (`FILING_CUTOFF_MINUTES`); next-day filings are counted in the note, not drawn |
+| **First Parade State Timeliness** (Filing & Accuracy) | Do companies file on time? (RSM, S1) | `submissions.ts#filingTimes`: every company-day up to today, the first FPS filing graded against 10:00 | Status grid company × day: green on time, yellow late (deeper the later), red not filed, grey weekend or public holiday; hover for the time | The 10:00 cut-off is a constant (`FILING_CUTOFF_MINUTES`); a filing sent on a later day counts, its lateness running past midnight |
 | **Sections That Do Not Add Up** (Filing & Accuracy) | Does each section header's count match the names under it? (S1) | `quality.ts#countMismatches` over the `sectionCounts` dataset (`section_counts`, granted to `dashboard_read` by migration 0008) | Heatmap company × day, mismatched sections in the tooltip | Compares per sub-header and section, as the parser stored them |
 
 Considered and left out: a rotation-aligned report-sick curve and control bands on the trends

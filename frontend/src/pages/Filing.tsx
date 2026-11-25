@@ -8,7 +8,7 @@ import { company } from '../app/state.ts';
 import { Banner, Card } from '../components/Card.tsx';
 import { ChartCard, Heatmap } from '../charts/index.ts';
 import { fmtClock, fmtDate, fmtFraction, fmtInt } from '../format.ts';
-import { COMPANIES } from '../../../shared/domain.ts';
+import { COMPANIES, isCompany } from '../../../shared/domain.ts';
 import { withinRange } from '../model/dateRange.ts';
 import { countMismatches, dataQuality, type DataQuality } from '../model/quality.ts';
 import { onlyCompany } from '../model/scope.ts';
@@ -88,30 +88,26 @@ function DataQualityPanel({ quality }: { quality: DataQuality }) {
   );
 }
 
-/** How late each company's first parade state arrived, day by day. */
+/** When each company's first parade state arrived, day by day: on time, late, not filed, or a day off. */
 function TimelinessCard({ filings, range }: { filings: FilingRecord[]; range: CategoryRange }) {
-  const { cells, onTime, filed, nextDay } = filingTimes(filings, range.days);
-  const companies = COMPANIES.filter((company) => (filed[company] ?? 0) > 0);
+  const companies: string[] = isCompany(company.value) ? [company.value] : [...COMPANIES];
+  const { cells, onTime, filed } = filingTimes(filings, range.days, companies, range.holidays);
+  const cutoff = fmtClock(FILING_CUTOFF_MINUTES);
   return (
     <ChartCard
-      title="First Parade State, Minutes Late"
+      title="First Parade State Timeliness"
       note={
-        'Minutes past ' + fmtClock(FILING_CUTOFF_MINUTES) + ' the first parade state arrived; 0 is on time. On time: ' +
-        companies.map((company) => company + ' ' + fmtFraction(onTime[company] ?? 0, filed[company] ?? 0)).join(', ') + '.'
+        'Green: in by ' + cutoff + '. Yellow: after ' + cutoff + ', deeper the later. Red: not filed. Grey: weekend or public holiday. On time: ' +
+        companies.map((name) => name + ' ' + fmtFraction(onTime[name] ?? 0, filed[name] ?? 0)).join(', ') + '.'
       }
-      coverage={
-        'A blank cell is a day with no filing' +
-        (nextDay > 0 ? ', or one of the ' + fmtInt(nextDay) + ' parade states filed on a later day.' : '.')
-      }
-      empty="No parade state filed in range."
+      empty="No days in range."
     >
       <Heatmap
         rows={companies}
         columns={range.days}
         cells={cells}
         valueName="minutes late"
-        detail={(cell) => ['Arrived ' + cell.at]}
-        showValues
+        detail={(cell) => [cell.at]}
         height={Math.max(160, companies.length * 36 + 60)}
       />
     </ChartCard>
