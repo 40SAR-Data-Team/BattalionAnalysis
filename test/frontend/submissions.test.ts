@@ -116,18 +116,29 @@ describe('latestFilingPerCompany', () => {
 });
 
 describe('filingTimes', () => {
-  test('values the first filing of each company-day in minutes past 08:00, counting next-day filings apart', () => {
+  test('grades each company-day against 10:00 (a next-day filing runs past midnight), greys days off, marks the rest not filed', () => {
     const filings = toFilings([
-      { timestamp: '2026-10-08T07:17:00', paradeResponseId: 'Archer_2026-10-08_FPS' },
+      { timestamp: '2026-10-08T09:17:00', paradeResponseId: 'Archer_2026-10-08_FPS' },
       { timestamp: '2026-10-08T09:30:00', paradeResponseId: 'Archer_2026-10-08_FPS' },
       { timestamp: '2026-10-08T11:11:00', paradeResponseId: 'Stallion_2026-10-08_FPS' },
-      { timestamp: '2026-10-08T08:05:00', paradeResponseId: 'Braves_2026-10-07_FPS' },
+      { timestamp: '2026-10-08T08:05:00', paradeResponseId: 'Archer_2026-10-07_FPS' },
+      { timestamp: '2026-10-10T08:00:00', paradeResponseId: 'Archer_2026-10-10_FPS' },
     ]);
-    const { cells, onTime, filed, nextDay } = filingTimes(filings, ['2026-10-07', '2026-10-08']);
-    expect(cells.map((c) => [c.row, c.column, c.value])).toEqual([
-      ['Archer', '2026-10-08', 0],
-      ['Stallion', '2026-10-08', 191],
-    ]);
-    expect([onTime.Archer, onTime.Stallion, filed.Braves, nextDay]).toEqual([1, 0, 1, 1]);
+    // 07 Wed, 08 Thu, 09 Fri (holiday), 10 Sat.
+    const days = ['2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'];
+    const holidays = [{ date: '2026-10-09', name: 'Deepavali' }];
+    const { cells, onTime, filed } = filingTimes(filings, days, ['Archer', 'Stallion'], holidays);
+    const grid = Object.fromEntries(cells.map((c) => [c.row + ' ' + c.column, [c.standing, c.value, c.at]]));
+    expect(grid).toEqual({
+      'Archer 2026-10-07': ['warning', 1325, 'Filed 2026-10-08 08:05'],
+      'Archer 2026-10-08': ['good', 0, '09:17'],
+      'Archer 2026-10-09': ['off', null, 'Deepavali'],
+      'Archer 2026-10-10': ['off', null, 'Weekend'],
+      'Stallion 2026-10-07': ['critical', null, 'Not filed'],
+      'Stallion 2026-10-08': ['warning', 71, '11:11'],
+      'Stallion 2026-10-09': ['off', null, 'Deepavali'],
+      'Stallion 2026-10-10': ['off', null, 'Weekend'],
+    });
+    expect([onTime.Archer, onTime.Stallion, filed.Archer]).toEqual([1, 0, 2]);
   });
 });

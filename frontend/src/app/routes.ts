@@ -44,7 +44,7 @@ export const ROUTES: PageRoute[] = [
   {
     path: '/today',
     component: Today,
-    label: 'Today',
+    label: 'Daily Overview',
     group: 'Today',
     icon: OverviewIcon,
   },
